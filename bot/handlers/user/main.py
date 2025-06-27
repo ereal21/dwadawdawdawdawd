@@ -3,6 +3,7 @@ import datetime
 import os
 from io import BytesIO
 from urllib.parse import urlparse
+import html
 
 import qrcode
 
@@ -16,7 +17,8 @@ from bot.database.methods import (
     select_item_values_amount, get_user_balance, get_item_value, buy_item, add_bought_item, buy_item_for_balance,
     select_user_operations, select_user_items, check_user_referrals, start_operation,
     select_unfinished_operations, get_user_referral, finish_operation, update_balance, create_operation,
-    bought_items_list, check_value, get_subcategories, get_category_parent, get_user_language, update_user_language
+    bought_items_list, check_value, get_subcategories, get_category_parent, get_user_language, update_user_language,
+    get_unfinished_operation
 )
 from bot.utils.files import cleanup_item_file
 from bot.handlers.other import get_bot_user_ids, check_sub_channel, get_bot_info
@@ -27,6 +29,34 @@ from bot.logger_mesh import logger
 from bot.misc import TgConfig, EnvKeys
 from bot.misc.payment import quick_pay, check_payment_status
 from bot.misc.nowpayments import create_payment, check_payment
+
+
+def build_menu_text(user_obj, balance: float, purchases: int, lang: str) -> str:
+    """Return main menu text. Greeting remains in English regardless of language."""
+    mention = f"<a href='tg://user?id={user_obj.id}'>{html.escape(user_obj.full_name)}</a>"
+    # The greeting is kept in English so the text does not change when switching languages
+    return (
+        f"{t('en', 'hello', user=mention)}\n"
+        f"{t('en', 'balance', balance=f'{balance:.2f}')}\n"
+        f"{t('en', 'basket', items=0)}\n"
+        f"{t('en', 'total_purchases', count=purchases)}\n\n"
+        f"{t('en', 'note')}"
+    )
+
+
+def build_subcategory_description(parent: str, lang: str) -> str:
+    """Return formatted description listing subcategories and their items."""
+    lines = [f"🏙️ {parent}", ""]
+    for sub in get_subcategories(parent):
+        lines.append(f"🏘️ {sub}:")
+        goods = get_all_items(sub)
+        for item in goods:
+            info = get_item_info(item)
+            amount = select_item_values_amount(item) if not check_value(item) else '∞'
+            lines.append(f"    • {item} ({info['price']:.2f}€) - {amount}")
+        lines.append("")
+    lines.append(t(lang, 'choose_subcategory'))
+    return "\n".join(lines)
 
 
 
@@ -78,13 +108,9 @@ async def start(message: Message):
         return
 
     balance = user_db.balance if user_db else 0
+    purchases = select_user_items(user_id)
     markup = main_menu(role_data, chat, TgConfig.HELPER_URL, user_lang)
-    text = (
-        f"{t(user_lang, 'hello', user=message.from_user.first_name)}\n"
-        f"{t(user_lang, 'balance', balance=f'{balance:.2f}')}\n"
-        f"{t(user_lang, 'basket', items=0)}\n\n"
-        f"{t(user_lang, 'overpay')}"
-    )
+    text = build_menu_text(message.from_user, balance, purchases, user_lang)
     await bot.send_message(user_id, text, reply_markup=markup)
     await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
 
@@ -94,12 +120,8 @@ async def back_to_menu_callback_handler(call: CallbackQuery):
     user = check_user(call.from_user.id)
     user_lang = get_user_language(user_id) or 'en'
     markup = main_menu(user.role_id, TgConfig.CHANNEL_URL, TgConfig.HELPER_URL, user_lang)
-    text = (
-        f"{t(user_lang, 'hello', user=call.from_user.first_name)}\n"
-        f"{t(user_lang, 'balance', balance=f'{user.balance:.2f}')}\n"
-        f"{t(user_lang, 'basket', items=0)}\n\n"
-        f"{t(user_lang, 'overpay')}"
-    )
+    purchases = select_user_items(user_id)
+    text = build_menu_text(call.from_user, user.balance, purchases, user_lang)
     await bot.edit_message_text(text,
                                 chat_id=call.message.chat.id,
                                 message_id=call.message.message_id,
@@ -159,18 +181,27 @@ async def items_list_callback_handler(call: CallbackQuery):
         if len(subcategories) % 10 == 0:
             max_index -= 1
         markup = subcategories_list(subcategories, category_name, 0, max_index)
-        await bot.edit_message_text('🏪 Choose a subcategory',
-                                    chat_id=call.message.chat.id,
-                                    message_id=call.message.message_id,
-                                    reply_markup=markup)
+        lang = get_user_language(user_id) or 'en'
+        text = build_subcategory_description(category_name, lang)
+        await bot.edit_message_text(
+            text,
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            reply_markup=markup,
+        )
     else:
         goods = get_all_items(category_name)
         max_index = len(goods) // 10
         if len(goods) % 10 == 0:
             max_index -= 1
         markup = goods_list(goods, category_name, 0, max_index)
-        await bot.edit_message_text('🏪 Select a product', chat_id=call.message.chat.id,
-                                    message_id=call.message.message_id, reply_markup=markup)
+        lang = get_user_language(user_id) or 'en'
+        await bot.edit_message_text(
+            t(lang, 'select_product'),
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            reply_markup=markup,
+        )
 
 
 async def navigate_goods(call: CallbackQuery):
@@ -302,12 +333,8 @@ async def process_home_menu(call: CallbackQuery):
     user = check_user(user_id)
     lang = get_user_language(user_id) or 'en'
     markup = main_menu(user.role_id, TgConfig.CHANNEL_URL, TgConfig.HELPER_URL, lang)
-    text = (
-        f"{t(lang, 'hello', user=call.from_user.first_name)}\n"
-        f"{t(lang, 'balance', balance=f'{user.balance:.2f}')}\n"
-        f"{t(lang, 'basket', items=0)}\n\n"
-        f"{t(lang, 'overpay')}"
-    )
+    purchases = select_user_items(user_id)
+    text = build_menu_text(call.from_user, user.balance, purchases, lang)
     await bot.send_message(user_id, text, reply_markup=markup)
 
 async def bought_items_callback_handler(call: CallbackQuery):
@@ -432,7 +459,7 @@ async def replenish_balance_callback_handler(call: CallbackQuery):
         await bot.edit_message_text(chat_id=call.message.chat.id,
                                     message_id=message_id,
                                     text='💰 Enter the top-up amount:',
-                                    reply_markup=back('profile'))
+                                    reply_markup=back('back_to_menu'))
         return
 
     await call.answer('Top up was not configured')
@@ -473,7 +500,8 @@ async def pay_yoomoney(call: CallbackQuery):
     label, url = quick_pay(fake)
     start_operation(user_id, amount, label)
     sleep_time = int(TgConfig.PAYMENT_TIME)
-    markup = payment_menu(url, label)
+    lang = get_user_language(user_id) or 'en'
+    markup = payment_menu(url, label, lang)
     await bot.edit_message_text(chat_id=call.message.chat.id,
                                 message_id=call.message.message_id,
                                 text=f'💵 Top-up amount: {amount}€.\n'
@@ -481,13 +509,12 @@ async def pay_yoomoney(call: CallbackQuery):
                                      f'<b>❗️ After payment press "Check payment"</b>',
                                 reply_markup=markup)
     await asyncio.sleep(sleep_time)
-    info = select_unfinished_operations(label)
+    info = get_unfinished_operation(label)
     if info:
-        payment_status = await check_payment_status(label)
-        if payment_status is None:
-            payment_status = await check_transaction_status(label)
-        if payment_status not in ('paid', 'success'):
+        status = await check_payment_status(label)
+        if status not in ('paid', 'success'):
             finish_operation(label)
+            await bot.send_message(user_id, t(lang, 'invoice_cancelled'))
 
 
 async def crypto_payment(call: CallbackQuery):
@@ -531,21 +558,22 @@ async def crypto_payment(call: CallbackQuery):
         reply_markup=markup,
     )
     await asyncio.sleep(sleep_time)
-    info = select_unfinished_operations(payment_id)
+    info = get_unfinished_operation(payment_id)
     if info:
         status = await check_payment(payment_id)
         if status not in ('finished', 'confirmed', 'sending'):
             finish_operation(payment_id)
+            await bot.send_message(user_id, t(lang, 'invoice_cancelled'))
 
 
 async def checking_payment(call: CallbackQuery):
     bot, user_id = await get_bot_user_ids(call)
     message_id = call.message.message_id
     label = call.data[6:]
-    info = select_unfinished_operations(label)
+    info = get_unfinished_operation(label)
 
     if info:
-        operation_value = info[0]
+        user_id_db, operation_value = info
         payment_status = await check_payment_status(label)
         if payment_status is None:
             payment_status = await check_payment(label)
@@ -573,6 +601,22 @@ async def checking_payment(call: CallbackQuery):
                                         reply_markup=back('profile'))
         else:
             await call.answer(text='❌ Payment was not successful')
+    else:
+        await call.answer(text='❌ Invoice not found')
+
+
+async def cancel_payment(call: CallbackQuery):
+    bot, user_id = await get_bot_user_ids(call)
+    invoice_id = call.data.split('_', 1)[1]
+    lang = get_user_language(user_id) or 'en'
+    if get_unfinished_operation(invoice_id):
+        finish_operation(invoice_id)
+        await bot.edit_message_text(
+            t(lang, 'invoice_cancelled'),
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            reply_markup=back('replenish_balance'),
+        )
     else:
         await call.answer(text='❌ Invoice not found')
 
@@ -708,6 +752,8 @@ def register_user_handlers(dp: Dispatcher):
                                        lambda c: c.data == 'pay_yoomoney')
     dp.register_callback_query_handler(crypto_payment,
                                        lambda c: c.data.startswith('crypto_'))
+    dp.register_callback_query_handler(cancel_payment,
+                                       lambda c: c.data.startswith('cancel_'))
     dp.register_callback_query_handler(checking_payment,
                                        lambda c: c.data.startswith('check_'))
     dp.register_callback_query_handler(process_home_menu,
