@@ -31,6 +31,11 @@ LANGUAGES = {
         'choose_subcategory': '🏘️ Choose a district:',
         'select_product': '🏪 Select a product',
 
+
+        'choose_subcategory': '🏘️ Choose a district:',
+        'select_product': '🏪 Select a product',
+
+
     },
     'ru': {
         'hello': '👋 Привет, {user}!',
@@ -60,6 +65,10 @@ LANGUAGES = {
         'invoice_cancelled': 'Оплата не завершена/истекла. Ваши товары больше не зарезервированы.',
         'total_purchases': '📦 Всего покупок: {count}',
         'note': '⚠️ Возврат средств невозможен. Отправляйте точную сумму, недоплаты не подтверждаются.',
+
+        'choose_subcategory': '🏘️ Выберите район:',
+        'select_product': '🏪 Выберите товар',
+
 
         'choose_subcategory': '🏘️ Выберите район:',
         'select_product': '🏪 Выберите товар',
@@ -96,6 +105,11 @@ LANGUAGES = {
 
         'choose_subcategory': '🏘️ Pasirinkite rajoną:',
         'select_product': '🏪 Pasirinkite prekę',
+
+
+        'choose_subcategory': '🏘️ Pasirinkite rajoną:',
+        'select_product': '🏪 Pasirinkite prekę',
+
 
     },
 }

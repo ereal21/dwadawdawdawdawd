@@ -9,7 +9,6 @@ import qrcode
 
 from aiogram import Dispatcher
 from aiogram.types import Message, CallbackQuery, ChatType, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.exceptions import ChatNotFound
 
 from bot.database.methods import (
     select_max_role_id, create_user, check_role, check_user,
@@ -21,8 +20,8 @@ from bot.database.methods import (
     get_unfinished_operation
 )
 from bot.utils.files import cleanup_item_file
-from bot.handlers.other import get_bot_user_ids, check_sub_channel, get_bot_info
-from bot.keyboards import check_sub, main_menu, categories_list, goods_list, subcategories_list, user_items_list, back, item_info, \
+from bot.handlers.other import get_bot_user_ids, get_bot_info
+from bot.keyboards import main_menu, categories_list, goods_list, subcategories_list, user_items_list, back, item_info, \
     profile, rules, payment_menu, close, crypto_choice, crypto_invoice_menu
 from bot.localization import t
 from bot.logger_mesh import logger
@@ -60,7 +59,7 @@ def build_subcategory_description(parent: str, lang: str) -> str:
     return "\n".join(lines)
 
 
-=======
+
     """Construct localized main menu text with user mention."""
     mention = user_obj.mention_html()
     return (
@@ -92,20 +91,6 @@ async def start(message: Message):
     role_data = check_role(user_id)
     user_db = check_user(user_id)
 
-    try:
-        if chat is not None:
-            chat_member = await bot.get_chat_member(chat_id=f'@{chat}', user_id=user_id)
-            if not await check_sub_channel(chat_member):
-                markup = check_sub(chat)
-                await bot.send_message(user_id,
-                                       'To start, subscribe to the news channel',
-                                       reply_markup=markup)
-                await bot.delete_message(chat_id=message.chat.id,
-                                         message_id=message.message_id)
-                return
-
-    except ChatNotFound:
-        pass
 
     user_lang = user_db.language
     if not user_lang:
@@ -620,6 +605,7 @@ async def checking_payment(call: CallbackQuery):
 
 
 async def cancel_payment(call: CallbackQuery):
+
     bot, user_id = await get_bot_user_ids(call)
     invoice_id = call.data.split('_', 1)[1]
     lang = get_user_language(user_id) or 'en'
@@ -636,29 +622,22 @@ async def cancel_payment(call: CallbackQuery):
 
 
 async def check_sub_to_channel(call: CallbackQuery):
-    bot, user_id = await get_bot_user_ids(call)
-    TgConfig.STATE[user_id] = None
-    chat = TgConfig.CHANNEL_URL
-    parsed_url = urlparse(chat)
-    channel_username = parsed_url.path.lstrip('/')
-    helper = TgConfig.HELPER_URL
-    chat_member = await bot.get_chat_member(chat_id='@' + channel_username, user_id=call.from_user.id)
 
-    if await check_sub_channel(chat_member):
-        user = check_user(call.from_user.id)
-        role = user.role_id
-        lang = get_user_language(user_id) or 'en'
-        markup = main_menu(role, chat, helper, lang)
-        text = (
-            f"{t(lang, 'hello', user=call.from_user.first_name)}\n"
-            f"{t(lang, 'balance', balance=f'{user.balance:.2f}')}\n"
-            f"{t(lang, 'basket', items=0)}\n\n"
-            f"{t(lang, 'overpay')}"
+    bot, user_id = await get_bot_user_ids(call)
+    invoice_id = call.data.split('_', 1)[1]
+    lang = get_user_language(user_id) or 'en'
+    if get_unfinished_operation(invoice_id):
+        finish_operation(invoice_id)
+        await bot.edit_message_text(
+            t(lang, 'invoice_cancelled'),
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            reply_markup=back('replenish_balance'),
         )
-        await bot.edit_message_text(text, chat_id=call.message.chat.id,
-                                    message_id=call.message.message_id, reply_markup=markup)
     else:
-        await call.answer(text='You did not subscribe')
+        await call.answer(text='❌ Invoice not found')
+
+
 
 
 async def change_language(call: CallbackQuery):
@@ -729,8 +708,6 @@ def register_user_handlers(dp: Dispatcher):
                                        lambda c: c.data == 'profile')
     dp.register_callback_query_handler(rules_callback_handler,
                                        lambda c: c.data == 'rules')
-    dp.register_callback_query_handler(check_sub_to_channel,
-                                       lambda c: c.data == 'sub_channel_done')
     dp.register_callback_query_handler(replenish_balance_callback_handler,
                                        lambda c: c.data == 'replenish_balance')
     dp.register_callback_query_handler(referral_callback_handler,
