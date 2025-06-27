@@ -402,7 +402,7 @@ async def adding_value_to_position(call: CallbackQuery):
     if answer == 'no':
         await bot.edit_message_text(chat_id=call.message.chat.id,
                                     message_id=message_id,
-                                    text='Enter items for the position separated by ;:',
+                                    text='Send folder path with product files or list values separated by ;:',
                                     reply_markup=back('item-management'))
     else:
         await bot.edit_message_text(chat_id=call.message.chat.id,
@@ -423,17 +423,16 @@ async def adding_item(message: Message):
     if answer == 'no':
         if message.photo:
             file_path = get_next_file_path(item_name)
-
-            file_path = get_next_file_path(item_name)
-
             file_name = f"{item_name}_{int(datetime.datetime.now().timestamp())}.jpg"
             file_path = os.path.join('assets', 'uploads', file_name)
-
-
             await message.photo[-1].download(destination_file=file_path)
             values_list = [file_path]
         else:
-            values_list = message.text.split(';')
+            if os.path.isdir(message.text):
+                folder = message.text
+                values_list = [os.path.join(folder, f) for f in os.listdir(folder)]
+            else:
+                values_list = message.text.split(';')
         await bot.delete_message(chat_id=message.chat.id,
                                  message_id=message.message_id)
         create_item(item_name, item_description, item_price, category_name)
@@ -459,9 +458,6 @@ async def adding_item(message: Message):
     else:
         if message.photo:
             file_path = get_next_file_path(item_name)
-
-            file_path = get_next_file_path(item_name)
-
             file_name = f"{item_name}_{int(datetime.datetime.now().timestamp())}.jpg"
             file_path = os.path.join('assets', 'uploads', file_name)
             await message.photo[-1].download(destination_file=file_path)
@@ -523,7 +519,7 @@ async def check_item_name_for_amount_upd(message: Message):
             TgConfig.STATE[f'{user_id}_name'] = message.text
             await bot.edit_message_text(chat_id=message.chat.id,
                                         message_id=message_id,
-                                        text='Enter items for the position separated by ;:',
+                                        text='Send folder path with product files or list values separated by ;:',
                                         reply_markup=back('goods_management'))
         else:
             await bot.edit_message_text(chat_id=message.chat.id,
@@ -536,15 +532,16 @@ async def updating_item_amount(message: Message):
     bot, user_id = await get_bot_user_ids(message)
     if message.photo:
         file_path = get_next_file_path(TgConfig.STATE.get(f'{user_id}_name'))
-
-        file_path = get_next_file_path(TgConfig.STATE.get(f'{user_id}_name'))
-
         file_name = f"{TgConfig.STATE.get(f'{user_id}_name')}_{int(datetime.datetime.now().timestamp())}.jpg"
         file_path = os.path.join('assets', 'uploads', file_name)
         await message.photo[-1].download(destination_file=file_path)
         values_list = [file_path]
     else:
-        values_list = message.text.split(';')
+        if os.path.isdir(message.text):
+            folder = message.text
+            values_list = [os.path.join(folder, f) for f in os.listdir(folder)]
+        else:
+            values_list = message.text.split(';')
     TgConfig.STATE[user_id] = None
     message_id = TgConfig.STATE.get(f'{user_id}_message_id')
     item_name = TgConfig.STATE.get(f'{user_id}_name')
@@ -688,7 +685,7 @@ async def update_item_process(call: CallbackQuery):
         elif answer[1] == 'deny':
             await bot.edit_message_text(chat_id=call.message.chat.id,
                                         message_id=message_id,
-                                        text='Enter items for the position separated by ;:',
+                                        text='Send folder path with product files or list values separated by ;:',
                                         reply_markup=back('goods_management'))
             TgConfig.STATE[f'{user_id}_change'] = 'deny'
     TgConfig.STATE[user_id] = 'apply_change'
@@ -698,12 +695,8 @@ async def update_item_infinity(message: Message):
     bot, user_id = await get_bot_user_ids(message)
     if message.photo:
         file_path = get_next_file_path(TgConfig.STATE.get(f'{user_id}_old_name'))
-
-        file_path = get_next_file_path(TgConfig.STATE.get(f'{user_id}_old_name'))
-
         file_name = f"{TgConfig.STATE.get(f'{user_id}_old_name')}_{int(datetime.datetime.now().timestamp())}.jpg"
         file_path = os.path.join('assets', 'uploads', file_name)
-
         await message.photo[-1].download(destination_file=file_path)
         msg = file_path
     else:
@@ -722,7 +715,10 @@ async def update_item_infinity(message: Message):
         add_values_to_item(item_old_name, msg, False)
     elif change == 'deny':
         delete_only_items(item_old_name)
-        values_list = msg.split(';')
+        if os.path.isdir(msg):
+            values_list = [os.path.join(msg, f) for f in os.listdir(msg)]
+        else:
+            values_list = msg.split(';')
         for i in values_list:
             add_values_to_item(item_old_name, i, False)
     TgConfig.STATE[user_id] = None

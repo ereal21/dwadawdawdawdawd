@@ -5,13 +5,18 @@ from bot.database.methods import get_category_parent
 
 
 def main_menu(role: int, channel: str = None, helper: str = None, lang: str = 'en') -> InlineKeyboardMarkup:
+    """Return main menu markup according to requested layout."""
     inline_keyboard = [
-        [InlineKeyboardButton(t(lang, 'shop'), callback_data='shop')],
+        [
+            InlineKeyboardButton(t(lang, 'shop'), callback_data='shop'),
+            InlineKeyboardButton(t(lang, 'top_up'), callback_data='replenish_balance'),
+        ],
         [
             InlineKeyboardButton(t(lang, 'profile'), callback_data='profile'),
-            InlineKeyboardButton(t(lang, 'top_up'), callback_data='replenish_balance')
-        ]
+            InlineKeyboardButton(t(lang, 'language'), callback_data='change_language'),
+        ],
     ]
+
     row = []
     if channel:
         row.append(InlineKeyboardButton(t(lang, 'channel'), url=f"https://t.me/{channel}"))
@@ -19,7 +24,6 @@ def main_menu(role: int, channel: str = None, helper: str = None, lang: str = 'e
         row.append(InlineKeyboardButton(t(lang, 'support'), url=f"https://t.me/{helper.lstrip('@')}"))
     if row:
         inline_keyboard.append(row)
-    inline_keyboard.append([InlineKeyboardButton(t(lang, 'language'), callback_data='change_language')])
     if role > 1:
         inline_keyboard.append([InlineKeyboardButton(t(lang, 'admin_panel'), callback_data='console')])
 
@@ -241,22 +245,22 @@ def back(callback: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
 
-def payment_menu(url: str, label: str) -> InlineKeyboardMarkup:
+def payment_menu(url: str, label: str, lang: str) -> InlineKeyboardMarkup:
+    """Return markup for fiat payment invoices."""
     inline_keyboard = [
-        [InlineKeyboardButton('✅ Pay', url=url)
-         ],
-        [InlineKeyboardButton('🔄 Check payment', callback_data=f'check_{label}')
-         ],
-        [InlineKeyboardButton('🔙 Go back', callback_data='replenish_balance')
-         ]
+        [InlineKeyboardButton('✅ Pay', url=url)],
+        [InlineKeyboardButton('🔄 Check payment', callback_data=f'check_{label}')],
+        [InlineKeyboardButton(t(lang, 'cancel_payment'), callback_data=f'cancel_{label}')],
+        [InlineKeyboardButton('🔙 Go back', callback_data='replenish_balance')],
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
 
 def crypto_invoice_menu(invoice_id: str, lang: str) -> InlineKeyboardMarkup:
+    """Return markup for crypto invoice."""
     inline_keyboard = [
         [InlineKeyboardButton(t(lang, 'i_paid'), callback_data=f'check_{invoice_id}')],
-        [InlineKeyboardButton(t(lang, 'cancel'), callback_data='replenish_balance')]
+        [InlineKeyboardButton(t(lang, 'cancel_payment'), callback_data=f'cancel_{invoice_id}')],
     ]
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
