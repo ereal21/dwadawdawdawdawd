@@ -23,6 +23,10 @@ LANGUAGES = {
         ),
         'i_paid': 'I paid',
         'cancel': 'Cancel',
+        'cancel_payment': '❌ Cancel Payment',
+        'invoice_cancelled': 'Payment failed/expired. Your items are no longer reserved.',
+        'total_purchases': '📦 Total Purchases: {count}',
+        'note': '⚠️ Note: No refunds. Please ensure you send the exact amount for payments, as underpayments will not be confirmed.',
     },
     'ru': {
         'hello': '👋 Привет, {user}!',
@@ -48,6 +52,10 @@ LANGUAGES = {
         ),
         'i_paid': 'Я оплатил',
         'cancel': 'Отмена',
+        'cancel_payment': '❌ Отменить оплату',
+        'invoice_cancelled': 'Оплата не завершена/истекла. Ваши товары больше не зарезервированы.',
+        'total_purchases': '📦 Всего покупок: {count}',
+        'note': '⚠️ Возврат средств невозможен. Отправляйте точную сумму, недоплаты не подтверждаются.',
     },
     'lt': {
         'hello': '👋 Sveiki, {user}!',
@@ -73,6 +81,10 @@ LANGUAGES = {
         ),
         'i_paid': 'Apmokėjau',
         'cancel': 'Atšaukti',
+        'cancel_payment': '❌ Atšaukti mokėjimą',
+        'invoice_cancelled': 'Mokėjimas nepavyko/baigėsi. Jūsų prekės nebėra rezervuotos.',
+        'total_purchases': '📦 Viso pirkinių: {count}',
+        'note': '⚠️ Pastaba: grąžinimų nėra. Įsitikinkite, kad siunčiate tikslią sumą, nes nepakankamos sumos nebus patvirtintos.',
     },
 }
 
