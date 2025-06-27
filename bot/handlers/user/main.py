@@ -31,6 +31,7 @@ from bot.misc.nowpayments import create_payment, check_payment
 
 
 def build_menu_text(user_obj, balance: float, purchases: int, lang: str) -> str:
+
     """Return main menu text. Greeting remains in English regardless of language."""
     mention = f"<a href='tg://user?id={user_obj.id}'>{html.escape(user_obj.full_name)}</a>"
     # The greeting is kept in English so the text does not change when switching languages
@@ -56,6 +57,19 @@ def build_subcategory_description(parent: str, lang: str) -> str:
         lines.append("")
     lines.append(t(lang, 'choose_subcategory'))
     return "\n".join(lines)
+
+
+
+    """Construct localized main menu text with user mention."""
+    mention = user_obj.mention_html()
+    return (
+        f"{t(lang, 'hello', user=mention)}\n"
+        f"{t(lang, 'balance', balance=f'{balance:.2f}')}\n"
+        f"{t(lang, 'basket', items=0)}\n"
+        f"{t(lang, 'total_purchases', count=purchases)}\n\n"
+        f"{t(lang, 'note')}"
+    )
+
 
 
 
@@ -591,6 +605,24 @@ async def checking_payment(call: CallbackQuery):
 
 
 async def cancel_payment(call: CallbackQuery):
+
+    bot, user_id = await get_bot_user_ids(call)
+    invoice_id = call.data.split('_', 1)[1]
+    lang = get_user_language(user_id) or 'en'
+    if get_unfinished_operation(invoice_id):
+        finish_operation(invoice_id)
+        await bot.edit_message_text(
+            t(lang, 'invoice_cancelled'),
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            reply_markup=back('replenish_balance'),
+        )
+    else:
+        await call.answer(text='❌ Invoice not found')
+
+
+async def check_sub_to_channel(call: CallbackQuery):
+
     bot, user_id = await get_bot_user_ids(call)
     invoice_id = call.data.split('_', 1)[1]
     lang = get_user_language(user_id) or 'en'
