@@ -4,8 +4,8 @@ from typing import Final
 
 class TgConfig(ABC):
     STATE: Final = {}
-    CHANNEL_URL: Final = 'https://t.me/your_channel'
-    HELPER_URL: Final = '@YourHelper'
+    CHANNEL_URL: Final = 'https://t.me/NBAXSHOP'
+    HELPER_URL: Final = '@nbaxox'
     GROUP_ID: Final = -988765433
     REFERRAL_PERCENT = 5
     PAYMENT_TIME: Final = 1800

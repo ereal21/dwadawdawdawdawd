@@ -3,6 +3,7 @@ import datetime
 import os
 from io import BytesIO
 from urllib.parse import urlparse
+import html
 
 import qrcode
 
@@ -31,6 +32,35 @@ from bot.misc.nowpayments import create_payment, check_payment
 
 
 def build_menu_text(user_obj, balance: float, purchases: int, lang: str) -> str:
+
+    """Return main menu text. Greeting remains in English regardless of language."""
+    mention = f"<a href='tg://user?id={user_obj.id}'>{html.escape(user_obj.full_name)}</a>"
+    # The greeting is kept in English so the text does not change when switching languages
+    return (
+        f"{t('en', 'hello', user=mention)}\n"
+        f"{t('en', 'balance', balance=f'{balance:.2f}')}\n"
+        f"{t('en', 'basket', items=0)}\n"
+        f"{t('en', 'total_purchases', count=purchases)}\n\n"
+        f"{t('en', 'note')}"
+    )
+
+
+def build_subcategory_description(parent: str, lang: str) -> str:
+    """Return formatted description listing subcategories and their items."""
+    lines = [f"🏙️ {parent}", ""]
+    for sub in get_subcategories(parent):
+        lines.append(f"🏘️ {sub}:")
+        goods = get_all_items(sub)
+        for item in goods:
+            info = get_item_info(item)
+            amount = select_item_values_amount(item) if not check_value(item) else '∞'
+            lines.append(f"    • {item} ({info['price']:.2f}€) - {amount}")
+        lines.append("")
+    lines.append(t(lang, 'choose_subcategory'))
+    return "\n".join(lines)
+
+
+=======
     """Construct localized main menu text with user mention."""
     mention = user_obj.mention_html()
     return (
@@ -40,6 +70,7 @@ def build_menu_text(user_obj, balance: float, purchases: int, lang: str) -> str:
         f"{t(lang, 'total_purchases', count=purchases)}\n\n"
         f"{t(lang, 'note')}"
     )
+
 
 
 
@@ -164,18 +195,27 @@ async def items_list_callback_handler(call: CallbackQuery):
         if len(subcategories) % 10 == 0:
             max_index -= 1
         markup = subcategories_list(subcategories, category_name, 0, max_index)
-        await bot.edit_message_text('🏪 Choose a subcategory',
-                                    chat_id=call.message.chat.id,
-                                    message_id=call.message.message_id,
-                                    reply_markup=markup)
+        lang = get_user_language(user_id) or 'en'
+        text = build_subcategory_description(category_name, lang)
+        await bot.edit_message_text(
+            text,
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            reply_markup=markup,
+        )
     else:
         goods = get_all_items(category_name)
         max_index = len(goods) // 10
         if len(goods) % 10 == 0:
             max_index -= 1
         markup = goods_list(goods, category_name, 0, max_index)
-        await bot.edit_message_text('🏪 Select a product', chat_id=call.message.chat.id,
-                                    message_id=call.message.message_id, reply_markup=markup)
+        lang = get_user_language(user_id) or 'en'
+        await bot.edit_message_text(
+            t(lang, 'select_product'),
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            reply_markup=markup,
+        )
 
 
 async def navigate_goods(call: CallbackQuery):
