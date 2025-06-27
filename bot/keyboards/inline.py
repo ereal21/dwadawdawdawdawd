@@ -7,6 +7,7 @@ from bot.database.methods import get_category_parent
 def main_menu(role: int, channel: str = None, helper: str = None, lang: str = 'en') -> InlineKeyboardMarkup:
     """Return main menu markup according to requested layout."""
     inline_keyboard = [
+
         [
             InlineKeyboardButton(t(lang, 'shop'), callback_data='shop'),
             InlineKeyboardButton(t(lang, 'top_up'), callback_data='replenish_balance'),
@@ -18,12 +19,24 @@ def main_menu(role: int, channel: str = None, helper: str = None, lang: str = 'e
     ]
 
     row = []
+
+        [InlineKeyboardButton(t(lang, 'shop'), callback_data='shop')],
+        [InlineKeyboardButton(t(lang, 'top_up'), callback_data='replenish_balance')],
+        [InlineKeyboardButton(t(lang, 'profile'), callback_data='profile')],
+        [InlineKeyboardButton(t(lang, 'language'), callback_data='change_language')],
+    ]
+
+
     if channel:
-        row.append(InlineKeyboardButton(t(lang, 'channel'), url=f"https://t.me/{channel}"))
+        inline_keyboard.append([InlineKeyboardButton(t(lang, 'channel'), url=f"https://t.me/{channel}")])
     if helper:
+
         row.append(InlineKeyboardButton(t(lang, 'support'), url=f"https://t.me/{helper.lstrip('@')}"))
     if row:
         inline_keyboard.append(row)
+
+        inline_keyboard.append([InlineKeyboardButton(t(lang, 'support'), url=f"https://t.me/{helper.lstrip('@')}")])
+
     if role > 1:
         inline_keyboard.append([InlineKeyboardButton(t(lang, 'admin_panel'), callback_data='console')])
 

@@ -32,6 +32,7 @@ from bot.misc.nowpayments import create_payment, check_payment
 
 
 def build_menu_text(user_obj, balance: float, purchases: int, lang: str) -> str:
+
     """Return main menu text. Greeting remains in English regardless of language."""
     mention = f"<a href='tg://user?id={user_obj.id}'>{html.escape(user_obj.full_name)}</a>"
     # The greeting is kept in English so the text does not change when switching languages
@@ -57,6 +58,19 @@ def build_subcategory_description(parent: str, lang: str) -> str:
         lines.append("")
     lines.append(t(lang, 'choose_subcategory'))
     return "\n".join(lines)
+
+
+=======
+    """Construct localized main menu text with user mention."""
+    mention = user_obj.mention_html()
+    return (
+        f"{t(lang, 'hello', user=mention)}\n"
+        f"{t(lang, 'balance', balance=f'{balance:.2f}')}\n"
+        f"{t(lang, 'basket', items=0)}\n"
+        f"{t(lang, 'total_purchases', count=purchases)}\n\n"
+        f"{t(lang, 'note')}"
+    )
+
 
 
 
